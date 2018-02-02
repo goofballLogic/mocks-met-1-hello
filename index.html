@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+    
+    <head>
+    
+        <meta charset="UTF-8">
+        <meta rel="dev" href="https://mocks-met-1-hello-goofballlogic.c9users.io/index.html" />
+        <title>Hello there</title>
+        <style>
+            * { box-sizing: border-box; }
+            body, html { width: 100%; height: 100%; }
+            .store-chooser,
+            .store-file-chooser { 
+                display: none; position: absolute; left: 0; right: 0; top: 0; bottom: 0; margin: auto; padding: 40px; background-color: white; box-shadow: 0 0 20px 0 silver; border-radius: 5px; width: 90%; height: 90%; 
+                overflow-y: auto;
+                
+            }
+            .store-chooser.visible { display: block; }
+            .store-file-chooser.visible { display: flex; }
+
+            button.hide { float: right; margin: 20px; }
+            .store-file-chooser,
+            .store-file-chooser .choose-list{
+
+                flex-direction: column;
+                overflow: hidden;
+                
+            }
+            .store-file-chooser .choose-list {
+                
+                display: flex;
+                
+            }
+            .store-file-chooser .choices {
+                
+                flex: 1;
+                overflow: auto;
+                
+            }
+            .store-file-chooser .choice {
+                
+                padding: 10px 0;
+                
+            }
+            .store-file-chooser .choice:hover {
+                
+                background-color: #EEE;
+                
+            }
+            .store-file-chooser .icon,
+            .store-file-chooser .name,
+            .store-file-chooser .modified {
+                
+                height: 20px;
+                display: inline-block;
+                width: 20px;
+                vertical-align: middle;
+                
+            }
+            .store-file-chooser .name {
+                
+                width: 500px;
+                
+            }
+            .store-file-chooser .modified {
+                
+                width: 200px;
+                
+            }
+            
+        </style>
+        <script src="https://unpkg.com/eventemitter3@latest/umd/eventemitter3.min.js"></script>
+        <script src="./sleeper-service.js"></script>
+        <script src="./sleeper-service-google-drive.js"></script>
+        <script>
+            
+            ( function() {
+                /* global sleeperService */
+                
+                var dialogs = [];
+                
+                function addChoices( container, choices ) {
+                
+                    var choiceTemplate = document.querySelector( "#store-choice-template" );
+                    for( var i = 0; i < choices.length; i++ ) {
+                        
+                        var choice = choices[ i ];
+                        var node = document.importNode( choiceTemplate.content, true );
+                        var button = node.children[ 0 ];
+                        button.innerHTML = button.innerHTML
+                            .replace( /\{\{name\}\}/g, choice.name )
+                            .replace( /\{\{description\}\}/g, choice.description )
+                            .replace( /\{\{image\}\}/g, choice.image );
+                        container.appendChild( node );
+                        button.addEventListener( "click", choice.choose );
+                        
+                    }
+                    
+                }
+                
+                function addFileChoices( container, choices ) {
+                    
+                    var choiceTemplate = document.querySelector( "#store-file-choice-template" );
+                    for( var i = 0; i < choices.length; i++ ) {
+                        
+                        var choice = choices[ i ];
+                        var node = document.importNode( choiceTemplate.content, true );
+                        var child = node.children[ 0 ];
+                        child.innerHTML = child.innerHTML
+                            .replace( /\{\{name\}\}/g, choice.name )
+                            .replace( /\{\{modified\}\}/g, choice.modified )
+                            .replace( /\{\{icon\}\}/g, choice.icon );
+                        container.appendChild( child );
+                        child.addEventListener( "click", choice.choose );
+                        
+                    }
+                    
+                }
+                
+                sleeperService.on( "choose-store", function( choices ) {
+                    
+                    var dialog = document.querySelector( ".store-chooser" );
+                    var container = dialog.querySelector( ".choices" );
+                    while( container.firstChild ) { container.removeChild( container.firstChild ); }
+                    addChoices( container, choices );
+                    showDialog( dialog );
+
+                } );
+                
+                sleeperService.on( "choose-store-file", function( choices ) {
+                    
+                    var dialog = document.querySelector( ".store-file-chooser" );
+                    var container = dialog.querySelector( ".choices" );
+                    while( container.firstChild ) { container.removeChild( container.firstChild ); }
+                    addFileChoices( container, choices );
+                    showDialog( dialog );
+                    
+                } );
+                
+                function handleFormSubmit( e ) {
+
+                    e.preventDefault();
+                    var form = e.target;
+                    console.log( form[ "message" ].value );
+                    sleeperService.provideStore().then( function( result ) {
+                        
+                        closeDialog();
+                        result.store.provideFile().then( function( file ) {
+                            
+                            console.log( file );
+                            
+                        }, console.error.bind( console ) );
+                        
+                    } );
+                    
+                }
+
+                function showDialog( dialog ) {
+                    
+                    dialogs.push( dialog );
+                    dialog.classList.add( "visible" );
+                    
+                }
+                function closeDialog() {
+                    
+                    var dialog = dialogs.pop();
+                    if ( dialog ) dialog.classList.remove( "visible" );
+                    
+                }
+                
+                window.addEventListener( "DOMContentLoaded", function( e ) {
+                    
+                    var form = document.querySelector( "form" );
+                    form.addEventListener( "submit", handleFormSubmit );
+                    document.body.addEventListener( "keyup", function( e ) {
+                        
+                        if ( e.key !== "Escape" ) return;
+                        closeDialog();                        
+                        
+                    } );
+                    document.body.addEventListener( "click", function( e ) {
+                        
+                        if ( !( e.target.tagName === "BUTTON" && e.target.classList.contains( "hide" ) ) ) { return; }
+                        var visible = e.target.parentElement;
+                        while( !visible.classList.contains( "visible" ) && visible.parentElement ) visible = visible.parentElement;
+                        if ( visible ) { visible.classList.remove( "visible" ); }
+
+                    } );
+                    
+                } );
+            
+            } () );
+            
+        </script>
+    </head>
+    <body>
+        
+        <h1>Hello there</h1>
+        <form>
+            
+            <textarea name="message"></textarea>
+            <button>Save</button>
+            
+        </form>
+        <article class="store-chooser">
+            
+            <button class="hide">Close</button>
+            <h3>Where shall we save this?</h3>
+            <div class="choices">
+                
+            </div>
+            
+        </article>
+        <template id="store-choice-template">
+            
+            <button class="store-choice" title="{{description}}">
+                
+                <img src="{{image}}" alt="{{name}} logo" /><br />
+                {{name}}
+                
+            </button>
+            
+        </template>
+        <article class="store-file-chooser">
+            
+            <h3><button class="hide">Cancel</button>Save as...</h3>
+            <div class="choose-list">
+                
+                <div class="header">
+                    
+                    <span class="icon"></span>
+                    <span class="name">Name</span>
+                    <span class="modified">Modified</span>
+                    
+                </div>
+                <div class="choices">
+                    
+                    
+                </div>
+                
+            </div>
+            
+        </article>
+        <template id="store-file-choice-template">
+            
+                <div class="choice">
+                    
+                    <span class="icon"><img src="{{icon}}" alt="File" /></span>
+                    <span class="name">{{name}}</span>
+                    <span class="modified">{{modified}}</span>
+
+                </div>                        
+            
+        </template>
+        <script async defer src="https://apis.google.com/js/api.js" onload="this.onload=function(){};sleeperService.googleDrive.handleClientLoad()" onreadystatechange="if (this.readyState === 'complete') this.onload()"></script>
+
+    </body>
+    
+</html>
